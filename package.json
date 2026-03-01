@@ -1,0 +1,36 @@
+{
+    "name": "extension-changelog-gen",
+    "version": "0.1.0",
+    "description": "Changelog generator for Chrome extensions — parse version history, generate markdown changelogs, update notification UI, and release notes.",
+    "author": "Zovo <hello@zovo.one>",
+    "license": "MIT",
+    "keywords": [
+        "chrome-extension",
+        "changelog",
+        "release-notes",
+        "version-history",
+        "whats-new",
+        "manifest-v3",
+        "browser-extension",
+        "generator"
+    ],
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/theluckystrike/extension-changelog-gen.git"
+    },
+    "main": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "files": [
+        "dist",
+        "README.md",
+        "LICENSE"
+    ],
+    "scripts": {
+        "build": "tsc",
+        "prepublishOnly": "npm run build"
+    },
+    "devDependencies": {
+        "@types/chrome": "^0.0.260",
+        "typescript": "^5.3.3"
+    }
+}
