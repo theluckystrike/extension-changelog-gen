@@ -1,12 +1,12 @@
-# extension-changelog-gen — Changelog Generator for Extensions
+# extension-changelog-gen — Changelog Generator
 > **Built by [Zovo](https://zovo.one)** | `npm i extension-changelog-gen`
 
-Generate markdown/HTML changelogs, "What's New" detection, and version tracking.
+Parse conventional commits, group by type, generate markdown changelogs, and CWS release notes.
 
 ```typescript
-import { ChangelogBuilder } from 'extension-changelog-gen';
-const log = new ChangelogBuilder();
-log.add({ version: '2.0', date: '2025-01-01', changes: [{ type: 'added', description: 'Dark mode' }] });
-if (await log.shouldShowUpdate()) showWhatsNew(log.toHTML());
+import { ChangelogGen } from 'extension-changelog-gen';
+const commits = ['feat(ui): dark mode support', 'fix: popup crash on load'];
+const changelog = ChangelogGen.generate('1.2.0', '2025-01-15', commits);
+const cwsNotes = ChangelogGen.generateCWSNotes(commits);
 ```
 MIT License

@@ -1,60 +1,52 @@
 /**
- * Changelog Builder — Generate and display changelogs for extensions
+ * Changelog Gen — Generate changelogs from conventional commits
  */
-export interface ChangelogEntry { version: string; date: string; changes: Array<{ type: 'added' | 'changed' | 'fixed' | 'removed'; description: string }>; }
+export class ChangelogGen {
+    /** Parse conventional commit message */
+    static parseCommit(message: string): { type: string; scope: string; description: string; breaking: boolean } | null {
+        const match = message.match(/^(\w+)(?:\(([^)]+)\))?(!?):\s*(.+)/);
+        if (!match) return null;
+        return { type: match[1], scope: match[2] || '', description: match[4], breaking: match[3] === '!' };
+    }
 
-export class ChangelogBuilder {
-    private entries: ChangelogEntry[] = [];
-    private storageKey: string;
-
-    constructor(storageKey: string = '__changelog__') { this.storageKey = storageKey; }
-
-    /** Add a changelog entry */
-    add(entry: ChangelogEntry): this { this.entries.push(entry); return this; }
+    /** Group commits by type */
+    static groupCommits(messages: string[]): Record<string, Array<{ scope: string; description: string; breaking: boolean }>> {
+        const groups: Record<string, Array<{ scope: string; description: string; breaking: boolean }>> = {};
+        messages.forEach((msg) => {
+            const parsed = this.parseCommit(msg);
+            if (!parsed) return;
+            if (!groups[parsed.type]) groups[parsed.type] = [];
+            groups[parsed.type].push({ scope: parsed.scope, description: parsed.description, breaking: parsed.breaking });
+        });
+        return groups;
+    }
 
     /** Generate markdown changelog */
-    toMarkdown(): string {
-        return this.entries.map((entry) => {
-            const changes = entry.changes.map((c) => `- **${c.type}**: ${c.description}`).join('\n');
-            return `## ${entry.version} (${entry.date})\n${changes}`;
-        }).join('\n\n');
+    static generate(version: string, date: string, commits: string[]): string {
+        const groups = this.groupCommits(commits);
+        const typeLabels: Record<string, string> = { feat: '✨ Features', fix: '🐛 Bug Fixes', perf: '⚡ Performance', refactor: '♻️ Refactoring', docs: '📚 Documentation', chore: '🔧 Chores', test: '✅ Tests', ci: '🔄 CI/CD' };
+        let md = `## [${version}] - ${date}\n\n`;
+        const breaking = commits.map((c) => this.parseCommit(c)).filter((p) => p?.breaking);
+        if (breaking.length > 0) { md += `### ⚠️ Breaking Changes\n\n`; breaking.forEach((b) => { md += `- ${b!.description}\n`; }); md += '\n'; }
+        for (const [type, items] of Object.entries(groups)) {
+            const label = typeLabels[type] || type;
+            md += `### ${label}\n\n`;
+            items.forEach((item) => {
+                const scope = item.scope ? `**${item.scope}:** ` : '';
+                md += `- ${scope}${item.description}\n`;
+            });
+            md += '\n';
+        }
+        return md;
     }
 
-    /** Generate HTML changelog */
-    toHTML(): string {
-        const icons: Record<string, string> = { added: '✨', changed: '🔄', fixed: '🐛', removed: '🗑️' };
-        return this.entries.map((entry) => {
-            const items = entry.changes.map((c) => `<li>${icons[c.type] || ''} <strong>${c.type}</strong>: ${c.description}</li>`).join('');
-            return `<div class="changelog-entry"><h3>${entry.version} <span style="color:#888">(${entry.date})</span></h3><ul>${items}</ul></div>`;
-        }).join('');
-    }
-
-    /** Check if update notification should show */
-    async shouldShowUpdate(): Promise<boolean> {
-        const current = chrome.runtime.getManifest().version;
-        const result = await chrome.storage.local.get(this.storageKey);
-        const lastSeen = result[this.storageKey] as string | undefined;
-        return lastSeen !== current;
-    }
-
-    /** Mark current version as seen */
-    async markSeen(): Promise<void> {
-        const current = chrome.runtime.getManifest().version;
-        await chrome.storage.local.set({ [this.storageKey]: current });
-    }
-
-    /** Get entry for current version */
-    getCurrentEntry(): ChangelogEntry | undefined {
-        const current = chrome.runtime.getManifest().version;
-        return this.entries.find((e) => e.version === current);
-    }
-
-    /** Get entries since last seen */
-    async getNewEntries(): Promise<ChangelogEntry[]> {
-        const result = await chrome.storage.local.get(this.storageKey);
-        const lastSeen = result[this.storageKey] as string | undefined;
-        if (!lastSeen) return this.entries;
-        const idx = this.entries.findIndex((e) => e.version === lastSeen);
-        return idx >= 0 ? this.entries.slice(0, idx) : this.entries;
+    /** Generate CWS release notes (simplified) */
+    static generateCWSNotes(commits: string[], maxLength: number = 500): string {
+        const groups = this.groupCommits(commits);
+        const sections: string[] = [];
+        if (groups.feat) sections.push('New: ' + groups.feat.map((f) => f.description).join(', '));
+        if (groups.fix) sections.push('Fixed: ' + groups.fix.map((f) => f.description).join(', '));
+        if (groups.perf) sections.push('Improved: ' + groups.perf.map((f) => f.description).join(', '));
+        return sections.join('\n').slice(0, maxLength);
     }
 }

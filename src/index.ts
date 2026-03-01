@@ -1,1 +1,1 @@
-export { ChangelogBuilder, type ChangelogEntry } from './changelog';
+export { ChangelogGen } from './changelog';
