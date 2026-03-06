@@ -1,26 +1,16 @@
-# extension-changelog-gen — Changelog Generator
+# extension-changelog-gen
 
-> **Built by [Zovo](https://zovo.one)** | `npm i extension-changelog-gen`
+A TypeScript library that parses conventional commit messages, groups them by type, and generates markdown changelogs or Chrome Web Store release notes. Built for browser extension projects using Manifest V3.
 
-Parse conventional commits, group by type, generate markdown changelogs, and Chrome Web Store release notes.
-
-## Features
-
-- **Conventional Commits** - Parse commits in conventional commit format
-- **Type Grouping** - Group changes by type (feat, fix, docs, etc.)
-- **Markdown Output** - Generate standard markdown changelogs
-- **CWS Notes** - Generate Chrome Web Store release notes
-- **Versioning** - Support for semantic versioning
-
-## Installation
+INSTALLATION
 
 ```bash
 npm install extension-changelog-gen
 ```
 
-## Usage
+USAGE
 
-### Basic Changelog Generation
+The library exports a single class with static methods. No configuration objects, no setup. Pass in commit strings and get formatted output.
 
 ```typescript
 import { ChangelogGen } from 'extension-changelog-gen';
@@ -36,122 +26,95 @@ const changelog = ChangelogGen.generate('1.2.0', '2025-01-15', commits);
 console.log(changelog);
 ```
 
-Output:
-```markdown
-# Changelog - Version 1.2.0 (2025-01-15)
+This produces a versioned markdown section with commits grouped under labeled headings like Features, Bug Fixes, Performance, and so on.
 
-## 🚀 Features
-- ui: add dark mode support
+PARSING COMMITS
 
-## 🐛 Bug Fixes
-- popup crash on load
-
-## 📚 Documentation
-- update installation guide
-
-## ⚡ Performance
-- api: improve response time
-```
-
-### Chrome Web Store Notes
+You can parse individual commit messages to extract their type, scope, description, and whether they include a breaking change marker.
 
 ```typescript
-import { ChangelogGen } from 'extension-changelog-gen';
+const result = ChangelogGen.parseCommit('feat(popup): add keyboard shortcuts');
+// { type: 'feat', scope: 'popup', description: 'add keyboard shortcuts', breaking: false }
 
-const commits = [
+const breaking = ChangelogGen.parseCommit('refactor!: rewrite storage layer');
+// { type: 'refactor', scope: '', description: 'rewrite storage layer', breaking: true }
+```
+
+Returns null if the message does not match conventional commit format.
+
+GROUPING COMMITS
+
+Pass an array of commit strings and get them grouped by type.
+
+```typescript
+const groups = ChangelogGen.groupCommits([
   'feat: new settings panel',
-  'fix: memory leak in background',
-  'fix: localization error'
-];
-
-const cwsNotes = ChangelogGen.generateCWSNotes(commits);
+  'feat: export as PDF',
+  'fix: memory leak in background script'
+]);
+// { feat: [...], fix: [...] }
 ```
 
-Output:
-```markdown
-Bug fixes:
-- Memory leak in background
-- Localization error
+GENERATING MARKDOWN CHANGELOGS
 
-New features:
-- New settings panel
-```
-
-### Custom Commit Types
+The generate method accepts a version string, a date string, and an array of commit messages. It returns a markdown section with commits organized by type. Breaking changes get their own section at the top.
 
 ```typescript
-import { ChangelogGen, CommitType } from 'extension-changelog-gen';
-
-const config = {
-  types: {
-    feat: { title: '✨ New Features', emoji: '✨' },
-    fix: { title: '🐛 Bug Fixes', emoji: '🐛' },
-    perf: { title: '⚡ Performance', emoji: '⚡' },
-    chore: { title: '🔧 Maintenance', emoji: '🔧' }
-  }
-};
-
-const changelog = ChangelogGen.generate('1.0.0', commits, config);
+const md = ChangelogGen.generate('2.0.0', '2025-06-01', [
+  'feat!: redesign options page',
+  'feat: add theme selector',
+  'fix: resolve auth token expiry'
+]);
 ```
 
-### Git Integration
+Built-in type labels cover feat, fix, perf, refactor, docs, chore, test, and ci. Any other conventional commit type falls through using its raw name.
+
+GENERATING CHROME WEB STORE NOTES
+
+The generateCWSNotes method produces a compact plain-text summary suitable for the Chrome Web Store listing. It covers features, fixes, and performance improvements. Output is truncated to a configurable max length (default 500 characters).
 
 ```typescript
-import { ChangelogGen } from 'extension-changelog-gen';
-import { execSync } from 'child_process';
-
-// Get commits since last tag
-const commits = execSync('git log --pretty=format:"%s" v1.0.0..HEAD')
-  .toString()
-  .split('\n')
-  .filter(Boolean);
-
-const changelog = ChangelogGen.generate('1.1.0', new Date().toISOString(), commits);
+const notes = ChangelogGen.generateCWSNotes(commits);
+const short = ChangelogGen.generateCWSNotes(commits, 200);
 ```
 
-## API Reference
+CONVENTIONAL COMMIT FORMAT
 
-### ChangelogGen.generate(version, date, commits, config?)
-
-Generate a markdown changelog.
-
-- `version` - Release version (e.g., '1.2.0')
-- `date` - Release date (ISO string or 'YYYY-MM-DD')
-- `commits` - Array of commit messages
-- `config` - Optional configuration for commit types
-
-### ChangelogGen.generateCWSNotes(commits, config?)
-
-Generate Chrome Web Store compatible release notes.
-
-- `commits` - Array of commit messages  
-- `config` - Optional configuration
-
-### CommitType
-
-```typescript
-interface CommitType {
-  title: string;  // Section title
-  emoji?: string; // Optional emoji prefix
-  order?: number; // Display order
-}
-```
-
-## Conventional Commits Format
-
-This library supports conventional commits:
+This library expects the standard conventional commits pattern.
 
 ```
 <type>(<scope>): <description>
-
-Types: feat, fix, docs, style, refactor, perf, test, chore, build, ci, revert
 ```
 
-Examples:
-- `feat(ui): add dark mode`
-- `fix(api): resolve auth token expiry`
-- `docs: update README`
+Supported types include feat, fix, docs, style, refactor, perf, test, chore, build, ci, and revert. Append ! before the colon to mark a breaking change.
 
-## License
+Examples
 
-MIT License
+```
+feat(ui): add dark mode
+fix(api): resolve auth token expiry
+docs: update README
+refactor!: rewrite storage layer
+```
+
+API REFERENCE
+
+ChangelogGen.parseCommit(message)
+  Takes a commit message string. Returns an object with type, scope, description, and breaking fields, or null if the message does not match.
+
+ChangelogGen.groupCommits(messages)
+  Takes an array of commit message strings. Returns an object keyed by commit type, where each value is an array of parsed commit entries.
+
+ChangelogGen.generate(version, date, commits)
+  Takes a version string, a date string, and an array of commit messages. Returns a markdown string with grouped and labeled sections.
+
+ChangelogGen.generateCWSNotes(commits, maxLength?)
+  Takes an array of commit messages and an optional max character length (default 500). Returns a plain-text summary for Chrome Web Store release notes.
+
+LICENSE
+
+MIT License. See LICENSE file for details.
+
+---
+
+Built by theluckystrike. More at zovo.one
